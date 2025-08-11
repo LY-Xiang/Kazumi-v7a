@@ -6,7 +6,7 @@ class StyleString {
   static const double cardSpace = 8;
   static const double safeSpace = 12;
   static BorderRadius mdRadius = BorderRadius.circular(10);
-  static const Radius imgRadius = Radius.circular(10);
+  static const Radius imgRadius = Radius.circular(12);
   static const double aspectRatio = 16 / 10;
 }
 
@@ -56,11 +56,28 @@ const List<String> userAgentsList = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
-  'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.1',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.1 Safari/605.1.15',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0',
+];
+
+// 默认 SyncPlay 服务器列表
+const List<String> defaultSyncPlayEndPoints = [
+  'syncplay.pl:8995',
+  'syncplay.pl:8996',
+  'syncplay.pl:8997',
+  'syncplay.pl:8998',
+  'syncplay.pl:8999',
+];
+
+const String defaultSyncPlayEndPoint = 'syncplay.pl:8996';
+
+// 随机HTTP请求头accept-language字段列表
+const List<String> acceptLanguageList = [
+  'zh-CN,zh;q=0.9',
+  'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+  'zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6',
 ];
 
 // Bangumi API 文档要求的UA格式
@@ -222,3 +239,10 @@ const String danmakuOnSvg = '''
       <path fill="#00AEEC" fill-rule="evenodd" d="M22.846 14.627a1 1 0 0 0-1.412.075l-5.091 5.703-2.216-2.275-.097-.086-.008-.005a1 1 0 0 0-1.322 1.493l2.963 3.041.093.083.007.005a1 1 0 0 0 1.354-.124l5.81-6.505.08-.102.005-.008a1 1 0 0 0-.166-1.295Z" clip-rule="evenodd"/>
     </svg>
     ''';
+
+//可选默认视频比例
+const Map<int, String> aspectRatioTypeMap = {
+  1 : "自动",
+  2 : "裁切填充",
+  3 : "拉伸填充",
+};

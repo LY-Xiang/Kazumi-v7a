@@ -258,7 +258,7 @@ class _AboutPageState extends State<AboutPage> {
                     ),
                     SettingsTile.navigation(
                       onPressed: (_) {
-                        myController.checkUpdata();
+                        myController.checkUpdate();
                       },
                       title: const Text('检查更新'),
                       value: const Text('当前版本 ${Api.version}'),

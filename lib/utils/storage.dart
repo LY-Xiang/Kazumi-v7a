@@ -14,6 +14,7 @@ class GStorage {
   static late Box<CollectedBangumi> collectibles;
   static late Box<History> histories;
   static late Box<CollectedBangumiChange> collectChanges;
+  static late Box<String> shieldList;
   static late final Box<dynamic> setting;
 
   static Future init() async {
@@ -28,6 +29,7 @@ class GStorage {
     histories = await Hive.openBox('histories');
     setting = await Hive.openBox('setting');
     collectChanges = await Hive.openBox('collectchanges');
+    shieldList = await Hive.openBox('shieldList');
   }
 
   static Future<void> backupBox(String boxName, String backupFilePath) async {
@@ -203,6 +205,7 @@ class SettingBoxKey {
       autoUpdate = 'autoUpdate',
       alwaysOntop = 'alwaysOntop',
       defaultPlaySpeed = 'defaultPlaySpeed',
+      defaultAspectRatioType = 'defaultAspectRatioType',
       danmakuEnhance = 'danmakuEnhance',
       danmakuBorder = 'danmakuBorder',
       danmakuOpacity = 'danmakuOpacity',
@@ -240,5 +243,7 @@ class SettingBoxKey {
       useDynamicColor = 'useDynamicColor',
       exitBehavior = 'exitBehavior',
       playerDebugMode = 'playerDebugMode',
+      syncPlayEndPoint = 'syncPlayEndPoint',
+      androidEnableOpenSLES = 'androidEnableOpenSLES',
       defaultSuperResolutionType = 'defaultSuperResolutionType';
 }

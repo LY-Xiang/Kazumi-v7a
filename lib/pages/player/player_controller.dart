@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
-import 'package:kazumi/pages/info/info_controller.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:kazumi/modules/danmaku/danmaku_module.dart';
@@ -17,7 +16,6 @@ import 'package:kazumi/utils/storage.dart';
 import 'package:logger/logger.dart';
 import 'package:kazumi/utils/logger.dart';
 import 'package:kazumi/utils/utils.dart';
-import 'package:flutter/services.dart';
 import 'package:kazumi/utils/constants.dart';
 import 'package:kazumi/shaders/shaders_controller.dart';
 import 'package:kazumi/utils/syncplay.dart';
@@ -31,7 +29,6 @@ class PlayerController = _PlayerController with _$PlayerController;
 abstract class _PlayerController with Store {
   final VideoPageController videoPageController =
       Modular.get<VideoPageController>();
-  final InfoController infoController = Modular.get<InfoController>();
   final ShadersController shadersController = Modular.get<ShadersController>();
 
   // 弹幕控制
@@ -118,6 +115,7 @@ abstract class _PlayerController with Store {
   Box setting = GStorage.setting;
   bool hAenable = true;
   late String hardwareDecoder;
+  bool androidEnableOpenSLES = true;
   bool lowMemoryMode = false;
   bool autoPlay = true;
   bool playerDebugMode = false;
@@ -137,6 +135,22 @@ abstract class _PlayerController with Store {
   Duration get playerBuffer => mediaPlayer.state.buffer;
 
   Duration get playerDuration => mediaPlayer.state.duration;
+
+  int? get playerWidth => mediaPlayer.state.width;
+
+  int? get playerHeight => mediaPlayer.state.height;
+
+  String get playerVideoParams => mediaPlayer.state.videoParams.toString();
+
+  String get playerAudioParams => mediaPlayer.state.audioParams.toString();
+
+  String get playerPlaylist => mediaPlayer.state.playlist.toString();
+
+  String get playerAudioTracks => mediaPlayer.state.track.audio.toString();
+
+  String get playerVideoTracks => mediaPlayer.state.track.video.toString();
+
+  String get playerAudioBitrate => mediaPlayer.state.audioBitrate.toString();
 
   /// 播放器内部日志
   List<String> playerLog = [];
@@ -167,10 +181,19 @@ abstract class _PlayerController with Store {
     if (episodeFromTitle == 0) {
       episodeFromTitle = videoPageController.currentEpisode;
     }
-    getDanDanmaku(videoPageController.title, episodeFromTitle);
+
+    List<String> titleList = [
+      videoPageController.title,
+      videoPageController.bangumiItem.nameCn,
+      videoPageController.bangumiItem.name
+    ].where((title) => title.isNotEmpty).toList();
+    // 根据标题列表获取弹幕,优先级: 视频源标题 > 番剧中文名 > 番剧日文名
+    getDanDanmaku(titleList, episodeFromTitle);
     mediaPlayer = await createVideoController(offset: offset);
     playerSpeed =
         setting.get(SettingBoxKey.defaultPlaySpeed, defaultValue: 1.0);
+    aspectRatioType =
+        setting.get(SettingBoxKey.defaultAspectRatioType, defaultValue: 1);
     if (Utils.isDesktop()) {
       volume = volume != -1 ? volume : 100;
       await setVolume(volume);
@@ -186,7 +209,7 @@ abstract class _PlayerController with Store {
     loading = false;
     if (syncplayController?.isConnected ?? false) {
       if (syncplayController!.currentFileName !=
-          "${infoController.bangumiItem.id}[${videoPageController.currentEpisode}]") {
+          "${videoPageController.bangumiItem.id}[${videoPageController.currentEpisode}]") {
         setSyncPlayPlayingBangumi(
             forceSyncPlaying: true, forceSyncPosition: 0.0);
       }
@@ -198,6 +221,8 @@ abstract class _PlayerController with Store {
     superResolutionType =
         setting.get(SettingBoxKey.defaultSuperResolutionType, defaultValue: 1);
     hAenable = setting.get(SettingBoxKey.hAenable, defaultValue: true);
+    androidEnableOpenSLES =
+        setting.get(SettingBoxKey.androidEnableOpenSLES, defaultValue: true);
     hardwareDecoder =
         setting.get(SettingBoxKey.hardwareDecoder, defaultValue: 'auto-safe');
     autoPlay = setting.get(SettingBoxKey.autoPlay, defaultValue: true);
@@ -242,7 +267,11 @@ abstract class _PlayerController with Store {
     await pp.setProperty("af", "scaletempo2=max-speed=8");
     if (Platform.isAndroid) {
       await pp.setProperty("volume-max", "100");
-      await pp.setProperty("ao", "opensles");
+      if (androidEnableOpenSLES) {
+        await pp.setProperty("ao", "opensles");
+      } else {
+        await pp.setProperty("ao", "audiotrack");
+      }
     }
 
     await mediaPlayer.setAudioTrack(
@@ -324,6 +353,7 @@ abstract class _PlayerController with Store {
       KazumiLogger().log(Level.error, '设置播放速度失败 ${e.toString()}');
     }
   }
+
 
   Future<void> setVolume(double value) async {
     value = value.clamp(0.0, 100.0);
@@ -414,11 +444,11 @@ abstract class _PlayerController with Store {
     forwardTime = time;
   }
 
-  Future<void> getDanDanmaku(String title, int episode) async {
-    KazumiLogger().log(Level.info, '尝试获取弹幕 $title');
+  Future<void> getDanDanmaku(List<String> titleList, int episode) async {
+    KazumiLogger().log(Level.info, '尝试获取弹幕 $titleList');
     try {
       danDanmakus.clear();
-      bangumiID = await DanmakuRequest.getBangumiID(title);
+      bangumiID = await DanmakuRequest.getBangumiIDByTitles(titleList);
       var res = await DanmakuRequest.getDanDanmaku(bangumiID, episode);
       addDanmakus(res);
     } catch (e) {
@@ -496,9 +526,33 @@ abstract class _PlayerController with Store {
   }
 
   Future<void> createSyncPlayRoom(
-      String room, String username, Function changeEpisode, {bool enableTLS = false}) async {
+      String room,
+      String username,
+      Future<void> Function(int episode, {int currentRoad, int offset})
+          changeEpisode,
+      {bool enableTLS = false}) async {
     await syncplayController?.disconnect();
-    syncplayController = SyncplayClient(host: 'syncplay.pl', port: 8995);
+    final String syncPlayEndPoint = setting.get(SettingBoxKey.syncPlayEndPoint,
+        defaultValue: defaultSyncPlayEndPoint);
+    String syncPlayEndPointHost = '';
+    int syncPlayEndPointPort = 0;
+    debugPrint('SyncPlay: 连接到服务器 $syncPlayEndPoint');
+    try {
+      final parts = syncPlayEndPoint.split(':');
+      if (parts.length == 2) {
+        syncPlayEndPointHost = parts[0];
+        syncPlayEndPointPort = int.parse(parts[1]);
+      }
+    } catch (_) {}
+    if (syncPlayEndPointHost == '' || syncPlayEndPointPort == 0) {
+      KazumiDialog.showToast(
+        message: 'SyncPlay: 服务器地址不合法 $syncPlayEndPoint',
+      );
+      KazumiLogger().log(Level.error, 'SyncPlay: 服务器地址不合法 $syncPlayEndPoint');
+      return;
+    }
+    syncplayController =
+        SyncplayClient(host: syncPlayEndPointHost, port: syncPlayEndPointPort);
     try {
       await syncplayController!.connect(enableTLS: enableTLS);
       syncplayController!.onGeneralMessage.listen(
@@ -530,7 +584,8 @@ abstract class _PlayerController with Store {
               setSyncPlayPlayingBangumi();
             } else {
               KazumiDialog.showToast(
-                  message: 'SyncPlay: 您不是当前房间中的唯一用户, 当前以用户 ${message['username']} 进度为准');
+                  message:
+                      'SyncPlay: 您不是当前房间中的唯一用户, 当前以用户 ${message['username']} 进度为准');
             }
           }
           if (message['type'] == 'left') {
@@ -571,7 +626,8 @@ abstract class _PlayerController with Store {
         (message) {
           if (message['username'] != username) {
             KazumiDialog.showToast(
-                message: 'SyncPlay: ${message['username']} 说: ${message['message']}',
+                message:
+                    'SyncPlay: ${message['username']} 说: ${message['message']}',
                 duration: const Duration(seconds: 5));
           }
         },
@@ -639,7 +695,7 @@ abstract class _PlayerController with Store {
   Future<void> setSyncPlayPlayingBangumi(
       {bool? forceSyncPlaying, double? forceSyncPosition}) async {
     await syncplayController!.setSyncPlayPlaying(
-        "${infoController.bangumiItem.id}[${videoPageController.currentEpisode}]",
+        "${videoPageController.bangumiItem.id}[${videoPageController.currentEpisode}]",
         10800,
         220514438);
     setSyncPlayCurrentPosition(

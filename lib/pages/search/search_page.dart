@@ -17,6 +17,7 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   final SearchController searchController = SearchController();
+
   /// Don't use modular singleton here. We may have multiple search pages.
   /// Use a new instance of SearchPageController for each search page.
   final SearchPageController searchPageController = SearchPageController();
@@ -46,6 +47,54 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
+  void showSortSwitcher() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Wrap(
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: const Text('按热度排序'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    searchController.text = searchPageController
+                        .attachSortParams(searchController.text, 'heat');
+                    searchPageController.searchBangumi(searchController.text,
+                        type: 'init');
+                  },
+                ),
+                ListTile(
+                  title: const Text('按评分排序'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    searchController.text = searchPageController
+                        .attachSortParams(searchController.text, 'rank');
+                    searchPageController.searchBangumi(searchController.text,
+                        type: 'init');
+                  },
+                ),
+                ListTile(
+                  title: const Text('按匹配程度排序'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    searchController.text = searchPageController
+                        .attachSortParams(searchController.text, 'match');
+                    searchPageController.searchBangumi(searchController.text,
+                        type: 'init');
+                  },
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -60,12 +109,31 @@ class _SearchPageState extends State<SearchPage> {
         backgroundColor: Colors.transparent,
         title: const Text("搜索"),
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          showSortSwitcher();
+        },
+        icon: const Icon(Icons.sort),
+        label: const Text("排序方式"),
+      ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
             child: SearchAnchor.bar(
               searchController: searchController,
+              barElevation: WidgetStateProperty<double>.fromMap(
+                <WidgetStatesConstraint, double>{WidgetState.any: 0},
+              ),
+              viewElevation: 0,
+              viewLeading: IconButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                icon: Icon(Icons.arrow_back),
+              ),
+              isFullScreen: MediaQuery.sizeOf(context).width <
+                  LayoutBreakpoint.compact['width']!,
               suggestionsBuilder: (context, controller) => <Widget>[
                 Container(
                   height: 400,
@@ -75,70 +143,70 @@ class _SearchPageState extends State<SearchPage> {
               ],
               onSubmitted: (value) {
                 searchPageController.searchBangumi(value, type: 'init');
-                searchController.closeView(value);
+                if (searchController.isOpen) {
+                  searchController.closeView(value);
+                }
               },
             ),
           ),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Observer(builder: (context) {
-                if (searchPageController.isTimeOut) {
-                  return Center(
-                    child: SizedBox(
-                      height: 400,
-                      child: GeneralErrorWidget(
-                        errMsg: '什么都没有找到 (´;ω;`)',
-                        actions: [
-                          GeneralErrorButton(
-                            onPressed: () {
-                              searchPageController.searchBangumi(
-                                  searchController.text,
-                                  type: 'init');
-                            },
-                            text: '点击重试',
-                          ),
-                        ],
-                      ),
+            child: Observer(builder: (context) {
+              if (searchPageController.isTimeOut) {
+                return Center(
+                  child: SizedBox(
+                    height: 400,
+                    child: GeneralErrorWidget(
+                      errMsg: '什么都没有找到 (´;ω;`)',
+                      actions: [
+                        GeneralErrorButton(
+                          onPressed: () {
+                            searchPageController.searchBangumi(
+                                searchController.text,
+                                type: 'init');
+                          },
+                          text: '点击重试',
+                        ),
+                      ],
                     ),
-                  );
-                }
-                if (searchPageController.isLoading &&
-                    searchPageController.bangumiList.isEmpty) {
-                  return Center(child: CircularProgressIndicator());
-                }
-                return GridView.builder(
-                  controller: scrollController,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    mainAxisSpacing: StyleString.cardSpace - 2,
-                    crossAxisSpacing: StyleString.cardSpace,
-                    crossAxisCount: MediaQuery.of(context).orientation !=
-                            Orientation.portrait
-                        ? 6
-                        : 3,
-                    mainAxisExtent: MediaQuery.of(context).size.width /
-                            (MediaQuery.of(context).orientation !=
-                                    Orientation.portrait
-                                ? 6
-                                : 3) /
-                            0.65 +
-                        MediaQuery.textScalerOf(context).scale(32.0),
                   ),
-                  itemCount: searchPageController.bangumiList.isNotEmpty
-                      ? searchPageController.bangumiList.length
-                      : 10,
-                  itemBuilder: (context, index) {
-                    return searchPageController.bangumiList.isNotEmpty
-                        ? BangumiCardV(
-                            enableHero: false,
-                            bangumiItem:
-                                searchPageController.bangumiList[index])
-                        : Container();
-                  },
                 );
-              }),
-            ),
-          )
+              }
+              if (searchPageController.isLoading &&
+                  searchPageController.bangumiList.isEmpty) {
+                return Center(child: CircularProgressIndicator());
+              }
+              return GridView.builder(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  mainAxisSpacing: StyleString.cardSpace - 2,
+                  crossAxisSpacing: StyleString.cardSpace,
+                  crossAxisCount:
+                      MediaQuery.of(context).orientation != Orientation.portrait
+                          ? 6
+                          : 3,
+                  mainAxisExtent: MediaQuery.of(context).size.width /
+                          (MediaQuery.of(context).orientation !=
+                                  Orientation.portrait
+                              ? 6
+                              : 3) /
+                          0.65 +
+                      MediaQuery.textScalerOf(context).scale(32.0),
+                ),
+                itemCount: searchPageController.bangumiList.isNotEmpty
+                    ? searchPageController.bangumiList.length
+                    : 10,
+                itemBuilder: (context, index) {
+                  return searchPageController.bangumiList.isNotEmpty
+                      ? BangumiCardV(
+                          enableHero: false,
+                          bangumiItem: searchPageController.bangumiList[index],
+                        )
+                      : Container();
+                },
+              );
+            }),
+          ),
         ],
       ),
     );

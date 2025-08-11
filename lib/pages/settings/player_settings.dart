@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
@@ -18,7 +19,9 @@ class PlayerSettingsPage extends StatefulWidget {
 class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
   Box setting = GStorage.setting;
   late double defaultPlaySpeed;
+  late int defaultAspectRatioType;
   late bool hAenable;
+  late bool androidEnableOpenSLES;
   late bool lowMemoryMode;
   late bool playResume;
   late bool showPlayerError;
@@ -30,7 +33,11 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
     super.initState();
     defaultPlaySpeed =
         setting.get(SettingBoxKey.defaultPlaySpeed, defaultValue: 1.0);
+    defaultAspectRatioType =
+        setting.get(SettingBoxKey.defaultAspectRatioType, defaultValue: 1);
     hAenable = setting.get(SettingBoxKey.hAenable, defaultValue: true);
+    androidEnableOpenSLES =
+        setting.get(SettingBoxKey.androidEnableOpenSLES, defaultValue: true);
     lowMemoryMode =
         setting.get(SettingBoxKey.lowMemoryMode, defaultValue: false);
     playResume = setting.get(SettingBoxKey.playResume, defaultValue: true);
@@ -52,6 +59,12 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
     });
   }
 
+  void updateDefaultAspectRatioType(int type) {
+    setting.put(SettingBoxKey.defaultAspectRatioType, type);
+    setState(() {
+      defaultAspectRatioType = type;
+    });
+  }
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {});
@@ -96,6 +109,19 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
                       description: const Text('禁用高级缓存以减少内存占用'),
                       initialValue: lowMemoryMode,
                     ),
+                    if (Platform.isAndroid) ...[
+                      SettingsTile.switchTile(
+                        onToggle: (value) async {
+                          androidEnableOpenSLES = value ?? !androidEnableOpenSLES;
+                          await setting.put(
+                              SettingBoxKey.androidEnableOpenSLES, androidEnableOpenSLES);
+                          setState(() {});
+                        },
+                        title: const Text('低延迟音频'),
+                        description: const Text('启用OpenSLES音频输出以降低延时'),
+                        initialValue: androidEnableOpenSLES,
+                      ),
+                    ],
                     SettingsTile.navigation(
                       onPressed: (_) async {
                         Modular.to.pushNamed('/settings/player/super');
@@ -213,6 +239,63 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
                       },
                       title: const Text('默认倍速'),
                       value: Text('$defaultPlaySpeed'),
+                    ),
+                    SettingsTile.navigation(
+                      onPressed: (_) async {
+                        KazumiDialog.show(builder: (context) {
+                          return AlertDialog(
+                            title: const Text('默认视频比例'),
+                            content: StatefulBuilder(
+                              builder: (BuildContext context, StateSetter setState) {
+                                return Wrap(
+                                  spacing: 8,
+                                  runSpacing: Utils.isDesktop() ? 8 : 0,
+                                  children: [
+                                    for (final entry in aspectRatioTypeMap.entries) ...<Widget>[
+                                      if (entry.key == defaultAspectRatioType) ...<Widget>[
+                                        FilledButton(
+                                          onPressed: () async {
+                                            updateDefaultAspectRatioType(entry.key);
+                                            KazumiDialog.dismiss();
+                                          },
+                                          child: Text(entry.value),
+                                        ),
+                                      ] else ...[
+                                        FilledButton.tonal(
+                                          onPressed: () async {
+                                            updateDefaultAspectRatioType(entry.key);
+                                            KazumiDialog.dismiss();
+                                          },
+                                          child: Text(entry.value),
+                                        ),
+                                      ]
+                                    ]
+                                  ],
+                                );
+                              },
+                            ),
+                            actions: <Widget>[
+                              TextButton(
+                                onPressed: () => KazumiDialog.dismiss(),
+                                child: Text(
+                                  '取消',
+                                  style: TextStyle(
+                                      color: Theme.of(context).colorScheme.outline),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  updateDefaultAspectRatioType(1); // 默认恢复自动
+                                  KazumiDialog.dismiss();
+                                },
+                                child: const Text('默认设置'),
+                              ),
+                            ],
+                          );
+                        });
+                      },
+                      title: const Text('默认视频比例'),
+                      value: Text(aspectRatioTypeMap[defaultAspectRatioType] ?? '自动'),
                     ),
                   ],
                 ),

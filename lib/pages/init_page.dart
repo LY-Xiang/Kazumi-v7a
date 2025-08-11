@@ -26,6 +26,7 @@ class _InitPageState extends State<InitPage> {
   final PluginsController pluginsController = Modular.get<PluginsController>();
   final CollectController collectController = Modular.get<CollectController>();
   final ShadersController shadersController = Modular.get<ShadersController>();
+  final MyController myController = Modular.get<MyController>();
   Box setting = GStorage.setting;
   late final ThemeProvider themeProvider;
 
@@ -35,6 +36,7 @@ class _InitPageState extends State<InitPage> {
     _webDavInit();
     _migrateStorage();
     _loadShaders();
+    _loadDanmakuShield();
     _update();
     themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     super.initState();
@@ -49,6 +51,10 @@ class _InitPageState extends State<InitPage> {
     await shadersController.copyShadersToExternalDirectory();
   }
 
+  Future<void> _loadDanmakuShield() async {
+    myController.loadShieldList();
+  }
+
   Future<void> _webDavInit() async {
     bool webDavEnable =
         await setting.get(SettingBoxKey.webDavEnable, defaultValue: false);
@@ -61,10 +67,12 @@ class _InitPageState extends State<InitPage> {
           await webDav.downloadAndPatchHistory();
           KazumiLogger().log(Level.info, '同步观看记录完成');
         } catch (e) {
-          KazumiLogger().log(Level.error, '同步观看记录失败 ${e.toString()}');
+          KazumiDialog.showToast(message:"同步观看记录失败 ${e.toString()}");
+          //KazumiLogger().log(Level.error, '同步观看记录失败 ${e.toString()}');
         }
       } catch (e) {
-        KazumiLogger().log(Level.error, '初始化WebDav失败 ${e.toString()}');
+        KazumiDialog.showToast(message:"初始化WebDav失败 ${e.toString()}");
+        //KazumiLogger().log(Level.error, '初始化WebDav失败 ${e.toString()}');
       }
     }
   }
@@ -196,7 +204,7 @@ class _InitPageState extends State<InitPage> {
       bool autoUpdate =
           setting.get(SettingBoxKey.autoUpdate, defaultValue: true);
       if (autoUpdate) {
-        Modular.get<MyController>().checkUpdata(type: 'auto');
+        Modular.get<MyController>().checkUpdate(type: 'auto');
       }
     }
   }

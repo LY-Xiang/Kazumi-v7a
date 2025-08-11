@@ -13,7 +13,6 @@ import 'package:kazumi/utils/remote.dart';
 import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
 import 'package:kazumi/pages/settings/danmaku/danmaku_settings_sheet.dart';
 import 'package:kazumi/bean/widget/collect_button.dart';
-import 'package:kazumi/pages/info/info_controller.dart';
 import 'package:kazumi/utils/constants.dart';
 import 'package:hive/hive.dart';
 import 'package:kazumi/utils/storage.dart';
@@ -38,6 +37,7 @@ class PlayerItemPanel extends StatefulWidget {
     required this.handleDanmaku,
     required this.showVideoInfo,
     required this.showSyncPlayRoomCreateDialog,
+    required this.showSyncPlayEndPointSwitchDialog,
   });
 
   final void Function(BuildContext) onBackPressed;
@@ -56,6 +56,7 @@ class PlayerItemPanel extends StatefulWidget {
   final void Function(String) sendDanmaku;
   final void Function() showVideoInfo;
   final void Function() showSyncPlayRoomCreateDialog;
+  final void Function() showSyncPlayEndPointSwitchDialog;
 
   @override
   State<PlayerItemPanel> createState() => _PlayerItemPanelState();
@@ -69,7 +70,6 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
   late Animation<Offset> leftOffsetAnimation;
   final VideoPageController videoPageController =
       Modular.get<VideoPageController>();
-  final InfoController infoController = Modular.get<InfoController>();
   final PlayerController playerController = Modular.get<PlayerController>();
   final TextEditingController textController = TextEditingController();
   final FocusNode textFieldFocus = FocusNode();
@@ -606,7 +606,7 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                             ),
                           // 追番
                           CollectButton(
-                            bangumiItem: infoController.bangumiItem,
+                            bangumiItem: videoPageController.bangumiItem,
                             onOpen: () {
                               widget.cancelHideTimer();
                               playerController.canHidePlayerPanel = false;
@@ -718,6 +718,16 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                                         padding:
                                             EdgeInsets.fromLTRB(0, 10, 10, 10),
                                         child: Text("加入房间"),
+                                      ),
+                                    ),
+                                    MenuItemButton(
+                                      onPressed: () {
+                                        widget.showSyncPlayEndPointSwitchDialog();
+                                      },
+                                      child: const Padding(
+                                        padding:
+                                            EdgeInsets.fromLTRB(0, 10, 10, 10),
+                                        child: Text("切换服务器"),
                                       ),
                                     ),
                                     MenuItemButton(
@@ -1152,32 +1162,23 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                                     tooltip: '视频比例',
                                   );
                                 },
-                                menuChildren: List<MenuItemButton>.generate(
-                                  3,
-                                  (int index) => MenuItemButton(
-                                    onPressed: () => playerController
-                                        .aspectRatioType = index + 1,
-                                    child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                          0, 10, 10, 10),
-                                      child: Text(
-                                        index + 1 == 1
-                                            ? '自动'
-                                            : index + 1 == 2
-                                                ? '裁切填充'
-                                                : '拉伸填充',
-                                        style: TextStyle(
-                                            color: index + 1 ==
-                                                    playerController
-                                                        .aspectRatioType
-                                                ? Theme.of(context)
-                                                    .colorScheme
-                                                    .primary
-                                                : null),
+                                menuChildren: [
+                                  for (final entry in aspectRatioTypeMap.entries)
+                                    MenuItemButton(
+                                      onPressed: () => playerController.aspectRatioType = entry.key,
+                                      child: Padding(
+                                        padding: const EdgeInsets.fromLTRB(0, 10, 10, 10),
+                                        child: Text(
+                                          entry.value,
+                                          style: TextStyle(
+                                            color: entry.key == playerController.aspectRatioType
+                                                ? Theme.of(context).colorScheme.primary
+                                                : null,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ),
+                                ],
                               ),
                               (!videoPageController.isFullscreen &&
                                       !Utils.isTablet() &&
